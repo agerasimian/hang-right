@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wall Visualizer — TV &amp; Frame Mounting Planner</title>
+<style>
+  :root {
+    --bg: #1b1d21;
+    --panel: #24272c;
+    --panel-2: #2c3036;
+    --line: #3a3f46;
+    --text: #e7e9ec;
+    --muted: #9aa0a8;
+    --accent: #4f9dff;
+    --accent-2: #ffb454;
+    --good: #4fd18b;
+    --snap: #ff4fd8;
+    --wall: #e9e4d8;
+    --wall-edge: #c9c2b2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  #sidebar h1 {
+    font-size: 16px;
+    margin: 0;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line);
+    letter-spacing: .2px;
+  }
+  #sidebar h1 small { display:block; color: var(--muted); font-weight: 400; font-size: 11px; margin-top: 3px; }
+  .section { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .section h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .row label { flex: 1; font-size: 13px; color: var(--muted); }
+  input[type="number"], input[type="text"], select {
+    width: 90px; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--text); border-radius: 6px; padding: 6px 8px; font-size: 13px;
+  }
+  select { width: 120px; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  input[type="range"] { width: 120px; accent-color: var(--accent); }
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px; cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  button:hover:not(:disabled) { background: #353a41; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #08213f; font-weight: 600; }
+  button.primary:hover { background: #3f8df2; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; flex: 1; background: var(--panel-2); }
+  .seg button.active { background: var(--accent); color: #08213f; font-weight: 600; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; margin-bottom: 8px; }
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  /* ---------- Item list ---------- */
+  #itemList { display: flex; flex-direction: column; gap: 6px; }
+  .item-card {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 10px; cursor: pointer; font-size: 13px;
+  }
+  .item-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .item-card .ic-head { display: flex; align-items: center; gap: 8px; }
+  .item-card .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .item-card .ic-name { flex: 1; font-weight: 600; }
+  .item-card .ic-lock { color: var(--muted); border: none; background: none; padding: 2px 4px; font-size: 13px; }
+  .item-card .ic-del { color: var(--muted); border: none; background: none; padding: 2px 4px; font-size: 14px; }
+  .item-card .ic-del:hover { color: #ff6b6b; background: none; }
+  .item-card .ic-dims { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .empty { color: var(--muted); font-size: 12px; font-style: italic; }
+
+  /* ---------- Readout ---------- */
+  #readout { font-size: 13px; }
+  #readout .r { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--line); gap: 10px; }
+  #readout .r:last-child { border-bottom: none; }
+  #readout .r span:first-child { color: var(--muted); }
+  #readout .r span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+  #readout .r.good span:last-child { color: var(--good); }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* ---------- Stage ---------- */
+  #stageWrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px; overflow: auto; }
+  #stage { position: relative; }
+  #wall {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    background: var(--wall);
+    border: 2px solid var(--wall-edge);
+    box-shadow: 0 30px 60px rgba(0,0,0,.45), inset 0 0 60px rgba(0,0,0,.05);
+  }
+  #floor {
+    position: absolute; left: -40px; right: -40px; top: 100%; height: 40px;
+    background: repeating-linear-gradient(45deg, #b9b09c, #b9b09c 8px, #b0a791 8px, #b0a791 16px);
+    border-top: 2px solid #8c846f;
+    opacity: .85;
+  }
+  svg#overlay, svg#overlayFront { position: absolute; top: 0; right: 0; bottom: 0; left: 0; overflow: visible; pointer-events: none; }
+  svg#overlay { z-index: 1; }
+  svg#overlayFront { z-index: 50; }
+
+  .item {
+    position: absolute; cursor: grab;
+    border: 2px solid rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: rgba(255,255,255,.92); text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    user-select: none; touch-action: none;
+    border-radius: 2px;
+    z-index: 10;
+  }
+  .item.tv { background: linear-gradient(155deg,#2a2d33,#15171a); border-color:#000; border-width:3px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+  .item.frame { box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  .item.selected { outline: 2px solid var(--accent); outline-offset: 2px; z-index: 11; }
+  .item.locked { cursor: default; }
+  .item:active { cursor: grabbing; }
+  .item .mat { position: absolute; background: #ece7da; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+  .item .lbl { pointer-events: none; padding: 0 4px; text-align: center; line-height: 1.25; position: relative; z-index: 1; }
+  .item .lock-badge { position: absolute; top: 2px; right: 3px; font-size: 10px; z-index: 2; opacity: .85; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+
+  /* overlay strokes/text */
+  .dim-text { fill: var(--accent); font: 600 12px -apple-system, sans-serif; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 4px; }
+  .dim-line { stroke: var(--accent); stroke-width: 1.5; }
+  .dim-tick { stroke: var(--accent); stroke-width: 1.5; }
+  .guide { stroke: var(--accent-2); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .guide-text { fill: var(--accent-2); font: 600 11px -apple-system, sans-serif; paint-order: stroke; stroke: rgba(0,0,0,.35); stroke-width: 3px; }
+  .center-guide { stroke: var(--good); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .snap-guide { stroke: var(--snap); stroke-width: 1.2; stroke-dasharray: 3 3; }
+  .stud-line { stroke: #8a7a5c; stroke-width: 8; opacity: .28; }
+  .stud-text { fill: #6f6248; font: 600 9px -apple-system, sans-serif; }
+  .bolt-mark { stroke: #ff5d5d; stroke-width: 2; }
+  .grid-line { stroke: #8f96a0; stroke-width: 1; opacity: .35; }
+
+  .topbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); color:#fff; padding:6px 14px; border-radius: 20px; font-size:12px; pointer-events:none; white-space: nowrap; }
+
+  /* ---------- Help / guide presentation ---------- */
+  .help-overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; padding: 20px; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+  .help-overlay[hidden] { display: none; }
+  .help-card { position: relative; width: 540px; max-width: 100%; max-height: 86vh; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.5); display: flex; flex-direction: column; overflow: hidden; }
+  .help-x { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--muted); font-size: 22px; line-height: 1; padding: 4px 8px; }
+  .help-x:hover { color: var(--text); background: none; }
+  .help-body { padding: 30px 30px 14px; overflow-y: auto; }
+  .help-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+  .help-body h3 { font-size: 21px; margin: 6px 0 14px; }
+  .help-body p { font-size: 14px; line-height: 1.6; color: #d6d9dd; margin: 0 0 12px; }
+  .help-body ul { margin: 0 0 12px; padding-left: 18px; }
+  .help-body li { font-size: 14px; line-height: 1.65; color: #d6d9dd; margin-bottom: 5px; }
+  .help-body b { color: #fff; }
+  .help-body kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; font-size: 12px; font-family: ui-monospace, monospace; color: var(--text); }
+  .help-hero { font-size: 40px; margin-bottom: 6px; }
+  .help-foot { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line); background: var(--panel-2); }
+  .help-dots { display: flex; gap: 7px; flex: 1; justify-content: center; }
+  .help-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .15s, transform .15s; cursor: pointer; }
+  .help-dots span.on { background: var(--accent); transform: scale(1.25); }
+  .help-foot button { min-width: 84px; }
+  .guide-launch { width: 100%; margin-bottom: 8px; background: var(--panel-2); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .guide-launch:hover { background: #2f3742; }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 820px) {
+    body { flex-direction: column; height: auto; min-height: 100vh; overflow: auto; }
+    #sidebar { width: 100%; min-width: 0; order: 2; border-right: none; border-top: 1px solid var(--line); overflow: visible; }
+    #stageWrap { order: 1; min-height: 50vh; padding: 14px; }
+    select, input[type="number"], input[type="text"], input[type="range"] { width: 120px; }
+  }
+</style>
+</head>
+<body>
+  <aside id="sidebar">
+    <h1>Wall Visualizer
+      <small>Plan TV &amp; picture-frame placement to scale</small>
+    </h1>
+
+    <div class="section">
+      <h2>Wall</h2>
+      <div class="row"><label>Width</label><input type="number" id="wallW" value="120" min="1" step="0.5" /></div>
+      <div class="row"><label>Height</label><input type="number" id="wallH" value="96" min="1" step="0.5" /></div>
+      <div class="row">
+        <label>Units</label>
+        <div class="seg" style="width:90px">
+          <button id="unitIn" class="active">in</button>
+          <button id="unitCm">cm</button>
+        </div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="ftin" /> Show feet &amp; inches (e.g. 5′ 0″)</label>
+    </div>
+
+    <div class="section">
+      <h2>Add</h2>
+      <div class="row">
+        <label>TV diagonal</label>
+        <input type="number" id="tvDiag" value="55" min="1" step="1" list="tvSizes" />
+        <datalist id="tvSizes">
+          <option value="24"></option><option value="32"></option><option value="40"></option>
+          <option value="43"></option><option value="50"></option><option value="55"></option>
+          <option value="65"></option><option value="75"></option><option value="85"></option>
+        </datalist>
+      </div>
+      <div class="btn-grid">
+        <button class="primary" id="addTv">+ Add TV</button>
+        <button class="primary" id="addFrame">+ Add Frame</button>
+      </div>
+      <div class="hint" style="margin-top:8px">TV uses 16:9 from the diagonal. Pick a frame size preset under the selected item below.</div>
+    </div>
+
+    <div class="section">
+      <h2>Guides &amp; snapping</h2>
+      <label class="toggle"><input type="checkbox" id="snapCenter" checked /> Snap to wall center &amp; eye level</label>
+      <label class="toggle"><input type="checkbox" id="snapAlign" checked /> Snap to grid, studs &amp; other items</label>
+      <label class="toggle"><input type="checkbox" id="showEye" checked /> Show eye-level line</label>
+      <div class="row"><label>Eye-level (center height)</label><input type="number" id="eyeH" value="60" min="1" step="0.5" /></div>
+      <label class="toggle"><input type="checkbox" id="showStuds" checked /> Show wall studs</label>
+      <div class="row"><label>Stud spacing (on-center)</label><input type="number" id="studSpacing" value="16" min="1" step="0.5" /></div>
+      <div class="row"><label>First stud from left</label><input type="number" id="studOffset" value="16" min="0" step="0.5" /></div>
+      <label class="toggle" style="margin-top:8px"><input type="checkbox" id="showGrid" /> Show reference grid</label>
+      <div class="row"><label>Grid spacing</label><input type="number" id="gridSpacing" value="12" min="1" step="1" /></div>
+      <div class="hint">Hold <b>Alt</b> while dragging to disable snapping. Arrow keys nudge the selected item (Shift = coarse).</div>
+    </div>
+
+    <div class="section">
+      <h2>Gallery wall (auto-arrange frames)</h2>
+      <div class="row">
+        <label>Layout</label>
+        <select id="galTemplate">
+          <option value="grid">Grid</option>
+          <option value="row">Single row</option>
+          <option value="column">Single column</option>
+          <option value="staircase">Staircase</option>
+        </select>
+      </div>
+      <div class="row"><label>Columns (grid)</label><input type="number" id="galCols" value="3" min="1" step="1" /></div>
+      <div class="row">
+        <label>Gap</label>
+        <input type="range" id="galGapRange" min="0" max="12" step="0.25" value="3" />
+      </div>
+      <div class="row"><label>Gap value</label><input type="number" id="galGap" value="3" min="0" step="0.25" /></div>
+      <div class="row"><label>Block center height</label><input type="number" id="galCenterH" value="60" min="1" step="0.5" /></div>
+      <button class="primary" id="arrangeGallery" style="width:100%">Arrange frames</button>
+
+      <label class="toggle" style="margin-top:12px"><input type="checkbox" id="lockGaps" /> Lock gaps — frames move up/down only</label>
+      <div class="row"><label>Move all frames</label>
+        <div class="btn-grid" style="grid-template-columns:repeat(4,1fr); flex:1">
+          <button id="grpL" title="Left">◀</button>
+          <button id="grpU" title="Up">▲</button>
+          <button id="grpD" title="Down">▼</button>
+          <button id="grpR" title="Right">▶</button>
+        </div>
+      </div>
+      <div class="hint">With <b>Lock gaps</b> on, dragging or arrow-nudging a frame changes only its height — horizontal position (and the side-to-side gaps) stay fixed. The ◀▲▼▶ buttons shift every frame together. Hold <b>Alt</b> to move freely.</div>
+    </div>
+
+    <div class="section" style="flex:1">
+      <h2>Items</h2>
+      <div id="itemList"><div class="empty">No items yet — add a TV or frame.</div></div>
+    </div>
+
+    <div class="section">
+      <h2>Project</h2>
+      <button class="guide-launch" id="helpBtn">📖  How to use this app</button>
+      <div class="btn-grid3" style="margin-bottom:8px">
+        <button id="undoBtn" title="Undo (Ctrl/Cmd+Z)">↶ Undo</button>
+        <button id="redoBtn" title="Redo (Ctrl/Cmd+Shift+Z)">↷ Redo</button>
+        <button id="shareBtn" title="Copy a link that restores this layout">Share</button>
+      </div>
+      <div class="btn-grid3">
+        <button id="exportPng">Save PNG</button>
+        <button id="exportSheet">Print</button>
+        <button id="resetProject">Reset</button>
+      </div>
+      <div class="hint" style="margin-top:8px">Auto-saves in this browser. <b>Share</b> copies a link that encodes the whole layout — no account needed.</div>
+    </div>
+
+    <div class="section">
+      <h2>Selected item</h2>
+      <div id="selEdit" class="empty">Nothing selected.</div>
+      <div id="readout"></div>
+    </div>
+  </aside>
+
+  <main id="stageWrap">
+    <div id="stage">
+      <div id="wall"></div>
+      <div id="floor"></div>
+      <svg id="overlay"></svg>
+      <svg id="overlayFront"></svg>
+      <div class="topbar" id="topbar">Drag · arrows nudge (Shift = coarse) · Alt disables snap</div>
+    </div>
+  </main>
+
+  <div class="help-overlay" id="helpOverlay" hidden>
+    <div class="help-card">
+      <button class="help-x" id="helpClose" title="Close">&times;</button>
+      <div class="help-body" id="helpBody"></div>
+      <div class="help-foot">
+        <button id="helpBack">Back</button>
+        <div class="help-dots" id="helpDots"></div>
+        <button class="primary" id="helpNext">Next</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const IN_PER_CM = 1 / 2.54;
+
+// ---------- State (real-world sizes stored in current display unit) ----------
+const state = {
+  unit: "in",
+  ftin: false,
+  wall: { w: 120, h: 96 },
+  eyeH: 60,
+  snapCenter: true,
+  snapAlign: true,
+  showEye: true,
+  studs: { show: true, spacing: 16, offset: 16 },
+  grid: { show: false, spacing: 12 },
+  groupFrames: false,   // lock gaps: drag/nudge moves all frames together
+  items: [],     // {id,type,name,w,h,color,x,y, hookDrop, mat, locked, vesaW,vesaH,vesaOffsetY}
+  selectedId: null,
+  nextId: 1,
+};
+
+const FRAME_COLORS = ["#c8743b","#3b7fc8","#7d4fc8","#3bc88a","#c83b6e","#c8b53b"];
+let frameColorIx = 0;
+
+const VESA_PRESETS = [[75,75],[100,100],[200,100],[200,200],[300,200],[300,300],[400,200],[400,300],[400,400],[600,400],[800,400]];
+// Common frame/print sizes in INCHES [w,h]
+const FRAME_PRESETS = [["Custom",null],["4×6",[4,6]],["5×7",[5,7]],["8×10",[8,10]],["11×14",[11,14]],["16×20",[16,20]],["18×24",[18,24]],["24×36",[24,36]],["A4 (8.3×11.7)",[8.27,11.69]],["A3 (11.7×16.5)",[11.69,16.54]]];
+
+function mmToUnit(mm){ return state.unit === "cm" ? mm / 10 : mm / 25.4; }
+function inToUnit(v){ return state.unit === "cm" ? v * 2.54 : v; }
+function vesaForDiag(diagIn){
+  if (diagIn <= 13) return [75,75];
+  if (diagIn <= 24) return [100,100];
+  if (diagIn <= 42) return [200,200];
+  if (diagIn <= 55) return [400,400];
+  if (diagIn <= 70) return [600,400];
+  return [800,400];
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+
+// ---------- Element refs ----------
+const stage = document.getElementById("stage");
+const wallEl = document.getElementById("wall");
+const overlay = document.getElementById("overlay");
+const overlayFront = document.getElementById("overlayFront");
+let drawTarget = overlay;
+let activeGuides = { x: [], y: [] };   // snap guide lines (unit coords), shown while dragging
+
+// ---------- Scale ----------
+let scale = 1;
+function computeScale() {
+  const wrap = document.getElementById("stageWrap");
+  const small = window.innerWidth <= 820;
+  const maxW = wrap.clientWidth - (small ? 28 : 120);
+  const maxH = wrap.clientHeight - (small ? 64 : 140);
+  scale = Math.max(0.5, Math.min(maxW / state.wall.w, maxH / state.wall.h));
+}
+
+// ---------- Value formatting (#11 feet & inches) ----------
+function round(v){ return Math.round(v*10)/10; }
+function val(v) {
+  const neg = v < 0 ? "-" : "";
+  let a = Math.abs(v);
+  if (state.unit === "cm") {
+    const r = Math.round(a*10)/10;
+    return neg + (Number.isInteger(r) ? r.toFixed(0) : r.toFixed(1)) + " cm";
+  }
+  if (state.ftin) {
+    let ft = Math.floor(a / 12);
+    let inch = Math.round((a - ft*12) * 10) / 10;
+    if (inch >= 12) { ft++; inch -= 12; }
+    const inchStr = Number.isInteger(inch) ? inch.toFixed(0) : inch.toFixed(1);
+    return neg + (ft > 0 ? ft + "′ " + inchStr + "″" : inchStr + "″");
+  }
+  const r = Math.round(a*10)/10;
+  return neg + (Number.isInteger(r) ? r.toFixed(0) : r.toFixed(1)) + "\"";
+}
+
+// ---------- Rendering ----------
+function layout() {
+  computeScale();
+  const pw = state.wall.w * scale, ph = state.wall.h * scale;
+  stage.style.width = pw + "px";
+  stage.style.height = ph + "px";
+  for (const sv of [overlay, overlayFront]) {
+    sv.setAttribute("width", pw); sv.setAttribute("height", ph);
+    sv.setAttribute("viewBox", `0 0 ${pw} ${ph}`);
+  }
+  renderItems();
+  renderOverlay();
+}
+
+function renderItems() {
+  stage.querySelectorAll(".item").forEach(n => n.remove());
+  for (const it of state.items) {
+    const el = document.createElement("div");
+    el.className = "item " + it.type + (it.id === state.selectedId ? " selected" : "") + (it.locked ? " locked" : "");
+    el.dataset.id = it.id;
+    el.style.left = (it.x * scale) + "px";
+    el.style.top = (it.y * scale) + "px";
+    el.style.width = (it.w * scale) + "px";
+    el.style.height = (it.h * scale) + "px";
+    if (it.type === "frame") {
+      el.style.background = it.color;
+      if (it.mat > 0) {
+        const m = it.mat * scale;
+        const inner = document.createElement("div");
+        inner.className = "mat";
+        inner.style.left = m + "px"; inner.style.top = m + "px";
+        inner.style.right = m + "px"; inner.style.bottom = m + "px";
+        el.appendChild(inner);
+      }
+    }
+    if (it.locked) {
+      const b = document.createElement("div");
+      b.className = "lock-badge"; b.textContent = "🔒";
+      el.appendChild(b);
+    }
+    const lbl = document.createElement("div");
+    lbl.className = "lbl"; lbl.textContent = it.name;
+    el.appendChild(lbl);
+    stage.appendChild(el);
+    attachDrag(el, it);
+  }
+}
+
+function renderOverlay() {
+  overlay.innerHTML = "";
+  overlayFront.innerHTML = "";
+  const pw = state.wall.w * scale, ph = state.wall.h * scale;
+
+  // ----- BACK layer: grid, studs, eye line -----
+  drawTarget = overlay;
+  if (state.grid.show && state.grid.spacing > 0) {
+    const sp = state.grid.spacing;
+    for (let gx = sp; gx < state.wall.w; gx += sp) line(gx*scale, 0, gx*scale, ph, "grid-line");
+    for (let gy = sp; gy < state.wall.h; gy += sp) line(0, ph - gy*scale, pw, ph - gy*scale, "grid-line");
+  }
+  if (state.studs.show) {
+    for (const s of studPositions()) { line(s*scale, 0, s*scale, ph, "stud-line"); text(s*scale + 3, 13, "stud", "stud-text"); }
+  }
+  if (state.showEye) {
+    const y = ph - state.eyeH * scale;
+    if (y > 0 && y < ph) { line(0, y, pw, y, "guide"); text(6, y - 6, `eye level ${val(state.eyeH)}`, "guide-text"); }
+  }
+
+  const it = selected();
+
+  // ----- FRONT layer: snap guides (while dragging) + selected item dims & marks -----
+  drawTarget = overlayFront;
+  for (const gx of activeGuides.x) line(gx*scale, 0, gx*scale, ph, "snap-guide");
+  for (const gy of activeGuides.y) line(0, gy*scale, pw, gy*scale, "snap-guide");
+
+  if (!it) return;
+
+  const ix = it.x*scale, iy = it.y*scale, iw = it.w*scale, ih = it.h*scale;
+  const cx = ix + iw/2, cy = iy + ih/2;
+
+  const wallCx = pw/2;
+  if (Math.abs(cx - wallCx) < 1) line(wallCx, 0, wallCx, ph, "center-guide");
+
+  dimH(0, ix, cy, val(it.x));
+  dimH(ix + iw, pw, cy, val(state.wall.w - (it.x + it.w)));
+  dimV(iy + ih, ph, cx, val(state.wall.h - (it.y + it.h)));
+  dimV(0, iy, cx, val(it.y));
+
+  if (it.type === "tv") {
+    const v = vesaHoles(it);
+    const rect = document.createElementNS(SVGNS, "rect");
+    rect.setAttribute("x", (v.cx - v.hw)*scale); rect.setAttribute("y", (v.cyTop - v.hh)*scale);
+    rect.setAttribute("width", 2*v.hw*scale); rect.setAttribute("height", 2*v.hh*scale);
+    rect.setAttribute("fill", "none"); rect.setAttribute("stroke", "#ff5d5d"); rect.setAttribute("stroke-width", "1.2"); rect.setAttribute("stroke-dasharray", "4 3");
+    overlayFront.appendChild(rect);
+    for (const h of v.holes) {
+      const hx = h.x*scale, hy = h.yTop*scale;
+      line(hx-5, hy, hx+5, hy, "bolt-mark"); line(hx, hy-5, hx, hy+5, "bolt-mark");
+    }
+  } else {
+    const nailY = iy + (it.hookDrop || 0) * scale;
+    const dot = document.createElementNS(SVGNS, "circle");
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", nailY); dot.setAttribute("r", 4);
+    dot.setAttribute("fill", "#ff5d5d"); dot.setAttribute("stroke", "#fff"); dot.setAttribute("stroke-width", "1.5");
+    overlayFront.appendChild(dot);
+  }
+}
+
+function line(x1,y1,x2,y2,cls){ const l=document.createElementNS(SVGNS,"line"); l.setAttribute("x1",x1);l.setAttribute("y1",y1);l.setAttribute("x2",x2);l.setAttribute("y2",y2); l.setAttribute("class",cls); drawTarget.appendChild(l); }
+function text(x,y,str,cls,anchor){ const t=document.createElementNS(SVGNS,"text"); t.setAttribute("x",x);t.setAttribute("y",y);t.setAttribute("class",cls); if(anchor)t.setAttribute("text-anchor",anchor); t.textContent=str; drawTarget.appendChild(t); }
+function dimH(x1,x2,y,label){ if (Math.abs(x2-x1) < 2) return; line(x1,y,x2,y,"dim-line"); line(x1,y-5,x1,y+5,"dim-tick"); line(x2,y-5,x2,y+5,"dim-tick"); text((x1+x2)/2, y-7, label, "dim-text", "middle"); }
+function dimV(y1,y2,x,label){ if (Math.abs(y2-y1) < 2) return; line(x,y1,x,y2,"dim-line"); line(x-5,y1,x+5,y1,"dim-tick"); line(x-5,y2,x+5,y2,"dim-tick"); text(x+7, (y1+y2)/2+4, label, "dim-text", "start"); }
+
+// ---------- Helpers ----------
+function selected() { return state.items.find(i => i.id === state.selectedId) || null; }
+function vesaHoles(it) {
+  const cx = it.x + it.w/2;
+  const cyTop = it.y + it.h/2 - (it.vesaOffsetY || 0);
+  const hw = mmToUnit(it.vesaW)/2, hh = mmToUnit(it.vesaH)/2;
+  return { cx, cyTop, hw, hh, holes: [
+    { x: cx-hw, yTop: cyTop-hh }, { x: cx+hw, yTop: cyTop-hh },
+    { x: cx-hw, yTop: cyTop+hh }, { x: cx+hw, yTop: cyTop+hh },
+  ]};
+}
+function studPositions() {
+  const out = []; const sp = state.studs.spacing, off = state.studs.offset;
+  if (!(sp > 0)) return out;
+  for (let x = off; x <= state.wall.w + 0.01; x += sp) if (x >= 0) out.push(round(x));
+  return out;
+}
+
+// ---------- Item list ----------
+function renderList() {
+  const list = document.getElementById("itemList");
+  if (!state.items.length) { list.innerHTML = '<div class="empty">No items yet — add a TV or frame.</div>'; return; }
+  list.innerHTML = "";
+  for (const it of state.items) {
+    const card = document.createElement("div");
+    card.className = "item-card" + (it.id === state.selectedId ? " selected" : "");
+    card.innerHTML = `
+      <div class="ic-head">
+        <span class="swatch" style="background:${it.type==='tv' ? '#15171a' : it.color}"></span>
+        <span class="ic-name">${esc(it.name)}</span>
+        <button class="ic-lock" title="Lock / unlock">${it.locked ? "🔒" : "🔓"}</button>
+        <button class="ic-del" title="Delete">&times;</button>
+      </div>
+      <div class="ic-dims">${val(it.w)} &times; ${val(it.h)}${it.locked ? " · locked" : ""}</div>`;
+    card.addEventListener("click", (e) => {
+      if (e.target.classList.contains("ic-del")) { commit(); deleteItem(it.id); return; }
+      if (e.target.classList.contains("ic-lock")) { commit(); it.locked = !it.locked; renderItems(); renderList(); renderEditor(); persist(); return; }
+      select(it.id);
+    });
+    list.appendChild(card);
+  }
+}
+
+// ---------- Selected-item editor (#1 position entry, #3 lock/dup, #7 presets, #9 mat) ----------
+function renderReadout() { renderEditor(); renderNumbers(); }
+
+function renderEditor() {
+  const it = selected();
+  const edit = document.getElementById("selEdit");
+  if (!it) { edit.className = "empty"; edit.textContent = "Nothing selected."; return; }
+  edit.className = "";
+
+  const presetRow = it.type === "frame"
+    ? `<div class="row"><label>Size preset</label>
+         <select id="ePreset">${FRAME_PRESETS.map((p,i)=>`<option value="${i}">${p[0]}</option>`).join("")}</select></div>`
+    : "";
+  const mountRows = it.type === "tv"
+    ? `<div class="row"><label>VESA pattern (mm)</label>
+         <select id="eVesa">${VESA_PRESETS.map(([w,h]) => `<option value="${w}x${h}" ${w===it.vesaW&&h===it.vesaH?"selected":""}>${w} × ${h}</option>`).join("")}</select></div>
+       <div class="row"><label>VESA center offset ↑</label><input type="number" id="eVoff" value="${round(it.vesaOffsetY||0)}" step="0.25"></div>`
+    : `<div class="row"><label>Matting width</label><input type="number" id="eMat" value="${round(it.mat||0)}" step="0.25" min="0"></div>
+       <div class="row"><label>Hook drop from top</label><input type="number" id="eHook" value="${round(it.hookDrop||0)}" step="0.25" min="0"></div>`;
+
+  edit.innerHTML = `
+    <div class="row"><label>Name</label><input type="text" id="eName" value="${esc(it.name)}" style="width:130px"></div>
+    ${presetRow}
+    <div class="row"><label>Width</label><input type="number" id="eW" value="${round(it.w)}" step="0.5"></div>
+    <div class="row"><label>Height</label><input type="number" id="eH" value="${round(it.h)}" step="0.5"></div>
+    ${mountRows}
+    <div class="row"><label>From left</label><input type="number" id="ePosX" value="${round(it.x)}" step="0.25"></div>
+    <div class="row"><label>Bottom from floor</label><input type="number" id="ePosY" value="${round(state.wall.h-(it.y+it.h))}" step="0.25"></div>
+    <label class="toggle"><input type="checkbox" id="eLock" ${it.locked?"checked":""}/> Lock position</label>
+    <div class="btn-grid"><button id="eDup">Duplicate</button><button id="eDel">Delete</button></div>`;
+
+  // generic: commit pre-edit state once when a field is focused
+  edit.querySelectorAll("input, select").forEach(commitOnFocus);
+
+  const refresh = () => { layout(); renderNumbers(); persist(); };
+  document.getElementById("eName").addEventListener("input", e => { it.name = e.target.value; renderItems(); renderList(); persist(); });
+  document.getElementById("eW").addEventListener("input", e => { const v=parseFloat(e.target.value); if(v>0){ it.w=v; clamp(it); refresh(); }});
+  document.getElementById("eH").addEventListener("input", e => { const v=parseFloat(e.target.value); if(v>0){ it.h=v; clamp(it); refresh(); }});
+  document.getElementById("ePosX").addEventListener("input", e => { const v=parseFloat(e.target.value); if(!isNaN(v)){ it.x=Math.max(0,Math.min(v, state.wall.w-it.w)); refresh(); }});
+  document.getElementById("ePosY").addEventListener("input", e => { const v=parseFloat(e.target.value); if(!isNaN(v)){ it.y=Math.max(0,Math.min(state.wall.h-it.h-v, state.wall.h-it.h)); refresh(); }});
+  document.getElementById("eLock").addEventListener("change", e => { it.locked=e.target.checked; renderItems(); renderList(); persist(); });
+  document.getElementById("eDup").addEventListener("click", duplicate);
+  document.getElementById("eDel").addEventListener("click", () => { commit(); deleteItem(it.id); });
+
+  if (it.type === "tv") {
+    document.getElementById("eVesa").addEventListener("change", e => { const [w,h]=e.target.value.split("x").map(Number); it.vesaW=w; it.vesaH=h; renderOverlay(); renderNumbers(); persist(); });
+    document.getElementById("eVoff").addEventListener("input", e => { const v=parseFloat(e.target.value); if(!isNaN(v)){ it.vesaOffsetY=v; renderOverlay(); renderNumbers(); persist(); }});
+  } else {
+    document.getElementById("ePreset").addEventListener("change", e => {
+      const p = FRAME_PRESETS[+e.target.value]; if (!p[1]) return;
+      it.w = round(inToUnit(p[1][0])); it.h = round(inToUnit(p[1][1])); clamp(it);
+      layout(); renderEditor(); renderNumbers(); persist();
+    });
+    document.getElementById("eMat").addEventListener("input", e => { const v=parseFloat(e.target.value); if(v>=0){ it.mat=Math.min(v, Math.min(it.w,it.h)/2); renderItems(); renderNumbers(); persist(); }});
+    document.getElementById("eHook").addEventListener("input", e => { const v=parseFloat(e.target.value); if(v>=0){ it.hookDrop=Math.min(v,it.h); renderOverlay(); renderNumbers(); persist(); }});
+  }
+}
+
+function renderNumbers() {
+  const it = selected();
+  const out = document.getElementById("readout");
+  if (!it) { out.innerHTML = ""; return; }
+
+  const left = it.x, right = state.wall.w - (it.x + it.w);
+  const floor = state.wall.h - (it.y + it.h), ceil = it.y;
+  const centerX = it.x + it.w/2;
+  const centerYFromFloor = state.wall.h - (it.y + it.h/2);
+  const offCenter = centerX - state.wall.w/2;
+  const centered = Math.abs(offCenter) < 0.15;
+
+  let mountRows;
+  if (it.type === "tv") {
+    const v = vesaHoles(it);
+    const topH = state.wall.h - v.cyTop + v.hh, botH = state.wall.h - v.cyTop - v.hh;
+    const behind = studPositions().filter(s => s >= it.x && s <= it.x + it.w);
+    const studNote = behind.length ? behind.map(s => val(s)).join(", ") : "⚠ none — slide TV or adjust spacing";
+    mountRows = `
+      <div class="r"><span>VESA pattern</span><span>${it.vesaW} × ${it.vesaH} mm</span></div>
+      <div class="r good"><span>★ Bolt holes — top (floor)</span><span>${val(topH)}</span></div>
+      <div class="r good"><span>★ Bolt holes — bottom (floor)</span><span>${val(botH)}</span></div>
+      <div class="r good"><span>★ Bolt holes — left (from left)</span><span>${val(v.cx - v.hw)}</span></div>
+      <div class="r good"><span>★ Bolt holes — right (from left)</span><span>${val(v.cx + v.hw)}</span></div>
+      <div class="r ${behind.length?'good':''}"><span>Studs behind TV (from left)</span><span>${studNote}</span></div>`;
+  } else {
+    const nailFromFloor = state.wall.h - it.y - (it.hookDrop || 0);
+    const artRow = it.mat > 0 ? `<div class="r"><span>Art opening</span><span>${val(it.w-2*it.mat)} × ${val(it.h-2*it.mat)}</span></div>` : "";
+    mountRows = `${artRow}
+      <div class="r good"><span>★ Nail height (from floor)</span><span>${val(nailFromFloor)}</span></div>
+      <div class="r good"><span>★ Nail from left wall</span><span>${val(centerX)}</span></div>`;
+  }
+  out.innerHTML = `
+    <div class="r"><span>From left wall</span><span>${val(left)}</span></div>
+    <div class="r"><span>From right wall</span><span>${val(right)}</span></div>
+    <div class="r ${centered?'good':''}"><span>Horizontal center</span><span>${centered ? "✓ centered" : (offCenter>0?"+":"")+val(offCenter)}</span></div>
+    <div class="r"><span>Bottom → floor</span><span>${val(floor)}</span></div>
+    <div class="r"><span>Top → ceiling</span><span>${val(ceil)}</span></div>
+    <div class="r"><span>${it.type==='tv'?'Screen':'Center'} height (from floor)</span><span>${val(centerYFromFloor)}</span></div>
+    ${mountRows}`;
+}
+
+function select(id) {
+  state.selectedId = id;
+  stage.querySelectorAll(".item").forEach(el => el.classList.toggle("selected", Number(el.dataset.id) === id));
+  renderList(); renderOverlay(); renderReadout();
+}
+
+function deleteItem(id) {
+  state.items = state.items.filter(i => i.id !== id);
+  if (state.selectedId === id) state.selectedId = state.items.length ? state.items[state.items.length-1].id : null;
+  layout(); renderList(); renderReadout(); persist();
+}
+
+function clamp(it) {
+  it.w = Math.min(it.w, state.wall.w);
+  it.h = Math.min(it.h, state.wall.h);
+  it.x = Math.max(0, Math.min(it.x, state.wall.w - it.w));
+  it.y = Math.max(0, Math.min(it.y, state.wall.h - it.h));
+}
+
+// ---------- Snapping (#2) ----------
+function computeSnap(it, nx, ny, excludeFrames) {
+  const thr = 8 / scale;
+  const others = state.items.filter(o => o.id !== it.id && !(excludeFrames && o.type === "frame"));
+  const gx = [], gy = [];
+  // locked gap (#snap-to-gap): when dragging a single frame, snap its facing edge
+  // to exactly one Gallery "Gap" away from a neighbouring frame's edge.
+  const gap = (state.snapAlign && it.type === "frame" && !excludeFrames)
+    ? (parseFloat(document.getElementById("galGap").value) || 0) : 0;
+
+  const xLines = [];
+  if (state.snapCenter) xLines.push(state.wall.w/2);
+  if (state.snapAlign) {
+    if (state.grid.show && state.grid.spacing > 0) for (let g=state.grid.spacing; g<state.wall.w; g+=state.grid.spacing) xLines.push(g);
+    if (state.studs.show) studPositions().forEach(s => xLines.push(s));
+    others.forEach(o => { xLines.push(o.x, o.x+o.w/2, o.x+o.w); if (gap > 0 && o.type === "frame") xLines.push(o.x+o.w+gap, o.x-gap); });
+    xLines.push(0, state.wall.w);
+  }
+  let bx = thr, sx = null, sgx = null;
+  for (const T of xLines) for (const off of [0, it.w/2, it.w]) { const d = Math.abs((nx+off) - T); if (d < bx) { bx = d; sx = T - off; sgx = T; } }
+  if (sx != null) { nx = sx; gx.push(sgx); }
+
+  const yLines = [];
+  if (state.snapCenter) yLines.push(state.wall.h - state.eyeH);
+  if (state.snapAlign) {
+    if (state.grid.show && state.grid.spacing > 0) for (let g=state.grid.spacing; g<state.wall.h; g+=state.grid.spacing) yLines.push(state.wall.h - g);
+    others.forEach(o => { yLines.push(o.y, o.y+o.h/2, o.y+o.h); if (gap > 0 && o.type === "frame") yLines.push(o.y+o.h+gap, o.y-gap); });
+    yLines.push(0, state.wall.h);
+  }
+  let by = thr, sy = null, sgy = null;
+  for (const T of yLines) for (const off of [0, it.h/2, it.h]) { const d = Math.abs((ny+off) - T); if (d < by) { by = d; sy = T - off; sgy = T; } }
+  if (sy != null) { ny = sy; gy.push(sgy); }
+
+  return { nx, ny, guides: { x: gx, y: gy } };
+}
+
+// ---------- Frame group (lock gaps) ----------
+function groupedFrames() { return state.items.filter(i => i.type === "frame" && !i.locked); }
+function clampGroupDelta(frames, dx, dy) {
+  const minX = Math.min(...frames.map(f => f.x)), maxX = Math.max(...frames.map(f => f.x + f.w));
+  const minY = Math.min(...frames.map(f => f.y)), maxY = Math.max(...frames.map(f => f.y + f.h));
+  dx = Math.max(-minX, Math.min(dx, state.wall.w - maxX));
+  dy = Math.max(-minY, Math.min(dy, state.wall.h - maxY));
+  return [dx, dy];
+}
+function moveFrameGroup(dx, dy) {
+  const frames = groupedFrames();
+  if (!frames.length) return;
+  [dx, dy] = clampGroupDelta(frames, dx, dy);
+  frames.forEach(f => { f.x = round(f.x + dx); f.y = round(f.y + dy); });
+}
+function nudgeGroup(dx, dy) {
+  if (!groupedFrames().length) { alert("No (unlocked) frames to move."); return; }
+  commit(); moveFrameGroup(dx, dy); layout(); renderNumbers(); persist();
+}
+
+// ---------- Drag ----------
+function attachDrag(el, it) {
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    select(it.id);
+    if (it.locked) return;
+    commit();
+    el.setPointerCapture(e.pointerId);
+    const startMx = e.clientX, startMy = e.clientY, startX = it.x, startY = it.y;
+    // lock gaps: frames are constrained to vertical movement (horizontal stays put)
+    const lockX = it.type === "frame" && state.groupFrames;
+
+    function move(ev) {
+      let nx = startX + (ev.clientX - startMx) / scale;
+      let ny = startY + (ev.clientY - startMy) / scale;
+      nx = Math.max(0, Math.min(nx, state.wall.w - it.w));
+      ny = Math.max(0, Math.min(ny, state.wall.h - it.h));
+      if (!ev.altKey) { const sn = computeSnap(it, nx, ny, false); nx = sn.nx; ny = sn.ny; activeGuides = sn.guides; }
+      else activeGuides = { x: [], y: [] };
+      if (lockX && !ev.altKey) { nx = startX; activeGuides.x = []; }   // horizontal locked (Alt frees it)
+      nx = Math.max(0, Math.min(nx, state.wall.w - it.w));
+      ny = Math.max(0, Math.min(ny, state.wall.h - it.h));
+      it.x = nx; it.y = ny;
+      el.style.left = (it.x*scale) + "px"; el.style.top = (it.y*scale) + "px";
+      renderOverlay(); renderNumbers();
+    }
+    function up() {
+      el.releasePointerCapture(e.pointerId);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      activeGuides = { x: [], y: [] };
+      it.x = round(it.x); it.y = round(it.y);
+      renderItems(); renderOverlay(); renderNumbers(); persist();
+    }
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+  });
+}
+
+// ---------- Add / duplicate ----------
+function addTv() {
+  commit();
+  const diag = parseFloat(document.getElementById("tvDiag").value) || 55;
+  const w = diag * 16 / Math.hypot(16,9), h = diag * 9 / Math.hypot(16,9);
+  const diagIn = state.unit === "cm" ? diag/2.54 : diag;
+  const [vw, vh] = vesaForDiag(diagIn);
+  const it = { id: state.nextId++, type: "tv", name: `TV ${Math.round(diag)}"`,
+    w: round(w), h: round(h), color: "#15171a", hookDrop: 0, mat: 0, locked: false,
+    vesaW: vw, vesaH: vh, vesaOffsetY: 0,
+    x: (state.wall.w - w)/2, y: (state.wall.h - state.eyeH) - h/2 };
+  clamp(it); state.items.push(it); select(it.id); layout(); renderList(); persist();
+}
+function addFrame() {
+  commit();
+  const color = FRAME_COLORS[frameColorIx++ % FRAME_COLORS.length];
+  const w = state.unit === "cm" ? 60 : 24, h = state.unit === "cm" ? 90 : 36;
+  const it = { id: state.nextId++, type: "frame", name: `Frame ${state.items.filter(i=>i.type==='frame').length+1}`,
+    w, h, color, hookDrop: state.unit === "cm" ? 7.5 : 3, mat: 0, locked: false,
+    x: (state.wall.w - w)/2, y: (state.wall.h - state.eyeH) - h/2 };
+  clamp(it);
+  it.x = Math.min(state.wall.w - it.w, it.x + (state.items.length % 4) * 3);
+  state.items.push(it); select(it.id); layout(); renderList(); persist();
+}
+function copyName(it) {
+  // strip any trailing " copy" / " copy-N" chain to get the base name
+  const base = it.name.replace(/(\s+copy(-\d+)?)+$/i, "").trim() || it.name;
+  const re = new RegExp("^" + base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s+copy-(\\d+)$", "i");
+  let max = 0;
+  for (const o of state.items) { const m = o.name.match(re); if (m) max = Math.max(max, parseInt(m[1], 10)); }
+  return `${base} copy-${max + 1}`;
+}
+function duplicate() {
+  const it = selected(); if (!it) return;
+  commit();
+  const copy = JSON.parse(JSON.stringify(it));
+  copy.id = state.nextId++; copy.name = copyName(it); copy.locked = false;
+  copy.x = Math.min(state.wall.w - copy.w, it.x + 3);
+  copy.y = Math.min(state.wall.h - copy.h, it.y + 3);
+  clamp(copy); state.items.push(copy); select(copy.id); layout(); renderList(); persist();
+}
+
+// ---------- Units ----------
+function setUnit(unit) {
+  if (unit === state.unit) return;
+  commit();
+  const f = unit === "cm" ? 2.54 : IN_PER_CM;
+  const conv = (v) => round(v * f);
+  state.wall.w = conv(state.wall.w); state.wall.h = conv(state.wall.h); state.eyeH = conv(state.eyeH);
+  for (const it of state.items) { it.w = conv(it.w); it.h = conv(it.h); it.x = round(it.x*f); it.y = round(it.y*f); it.hookDrop = conv(it.hookDrop||0); if (it.mat) it.mat = conv(it.mat); if (it.vesaOffsetY) it.vesaOffsetY = conv(it.vesaOffsetY); }
+  state.studs.spacing = conv(state.studs.spacing); state.studs.offset = conv(state.studs.offset); state.grid.spacing = conv(state.grid.spacing);
+  document.getElementById("galGap").value = round(parseFloat(document.getElementById("galGap").value)*f);
+  document.getElementById("galGapRange").value = document.getElementById("galGap").value;
+  document.getElementById("galCenterH").value = round(parseFloat(document.getElementById("galCenterH").value)*f);
+  document.getElementById("tvDiag").value = round(parseFloat(document.getElementById("tvDiag").value) * f);
+  state.unit = unit;
+  syncInputs(); layout(); renderList(); renderReadout(); persist();
+}
+
+// ---------- Gallery wall (#8 templates) ----------
+function arrangeGallery() {
+  const frames = state.items.filter(i => i.type === "frame");
+  if (!frames.length) { alert("Add some frames first."); return; }
+  commit();
+  const gap = Math.max(0, parseFloat(document.getElementById("galGap").value) || 0);
+  const centerH = parseFloat(document.getElementById("galCenterH").value) || state.eyeH;
+  const tmpl = document.getElementById("galTemplate").value;
+
+  if (tmpl === "staircase") {
+    arrangeStaircase(frames, gap, centerH);
+  } else {
+    let cols = Math.max(1, parseInt(document.getElementById("galCols").value) || 1);
+    if (tmpl === "row") cols = frames.length;
+    if (tmpl === "column") cols = 1;
+    arrangeGrid(frames, cols, gap, centerH);
+  }
+  layout(); renderList(); renderReadout(); persist();
+}
+function arrangeGrid(frames, cols, gap, centerH) {
+  const rows = [];
+  for (let i = 0; i < frames.length; i += cols) rows.push(frames.slice(i, i + cols));
+  const rowH = rows.map(r => Math.max(...r.map(f => f.h)));
+  const rowW = rows.map(r => r.reduce((s,f)=>s+f.w,0) + gap*(r.length-1));
+  const totalH = rowH.reduce((a,b)=>a+b,0) + gap*(rows.length-1);
+  let topY = (state.wall.h - centerH) - totalH/2;
+  topY = Math.max(0, Math.min(topY, state.wall.h - totalH));
+  rows.forEach((r, ri) => {
+    let x = (state.wall.w - rowW[ri]) / 2; const rh = rowH[ri];
+    for (const f of r) { f.x = round(x); f.y = round(topY + (rh - f.h)/2); clamp(f); x += f.w + gap; }
+    topY += rh + gap;
+  });
+}
+function arrangeStaircase(frames, gap, centerH) {
+  const n = frames.length;
+  const totalW = frames.reduce((s,f)=>s+f.w,0) + gap*(n-1);
+  const avgH = frames.reduce((s,f)=>s+f.h,0)/n;
+  const rise = avgH*0.5 + gap;          // each step climbs this much
+  const centers = frames.map((_,i)=> i*rise);
+  const mean = centers.reduce((a,b)=>a+b,0)/n;
+  let x = (state.wall.w - totalW) / 2;
+  frames.forEach((f,i) => {
+    f.x = round(x);
+    const cFromFloor = centerH + (centers[i] - mean);   // rises to the right
+    f.y = round(state.wall.h - cFromFloor - f.h/2);
+    clamp(f); x += f.w + gap;
+  });
+}
+
+// ---------- Persistence / state apply (#10 share) ----------
+const STORE_KEY = "wallVisualizer.v1";
+function snapshotObj() {
+  return {
+    unit: state.unit, ftin: state.ftin, wall: {...state.wall}, eyeH: state.eyeH,
+    snapCenter: state.snapCenter, snapAlign: state.snapAlign, showEye: state.showEye,
+    studs: {...state.studs}, grid: {...state.grid}, groupFrames: state.groupFrames,
+    items: state.items.map(i => ({...i})), nextId: state.nextId, selectedId: state.selectedId,
+  };
+}
+function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshotObj())); } catch (e) {} }
+function fromLocal() { try { const raw = localStorage.getItem(STORE_KEY); if (!raw) return null; const s = JSON.parse(raw); return (s && s.items) ? s : null; } catch (e) { return null; } }
+
+function syncInputs() {
+  document.getElementById("wallW").value = state.wall.w;
+  document.getElementById("wallH").value = state.wall.h;
+  document.getElementById("eyeH").value = state.eyeH;
+  document.getElementById("ftin").checked = state.ftin;
+  document.getElementById("snapCenter").checked = state.snapCenter;
+  document.getElementById("snapAlign").checked = state.snapAlign;
+  document.getElementById("showEye").checked = state.showEye;
+  document.getElementById("showStuds").checked = state.studs.show;
+  document.getElementById("studSpacing").value = state.studs.spacing;
+  document.getElementById("studOffset").value = state.studs.offset;
+  document.getElementById("showGrid").checked = state.grid.show;
+  document.getElementById("gridSpacing").value = state.grid.spacing;
+  document.getElementById("lockGaps").checked = state.groupFrames;
+  document.getElementById("unitIn").classList.toggle("active", state.unit === "in");
+  document.getElementById("unitCm").classList.toggle("active", state.unit === "cm");
+}
+function applyState(s) {
+  state.unit = s.unit || "in";
+  state.ftin = !!s.ftin;
+  state.wall = s.wall || state.wall;
+  state.eyeH = s.eyeH ?? state.eyeH;
+  state.snapCenter = s.snapCenter ?? true;
+  state.snapAlign = s.snapAlign ?? true;
+  state.showEye = s.showEye ?? true;
+  state.studs = s.studs || state.studs;
+  state.grid = s.grid || state.grid;
+  state.groupFrames = !!s.groupFrames;
+  state.items = (s.items || []).map(i => {
+    const b = { hookDrop: 0, mat: 0, locked: false, ...i };
+    if (b.type === "tv" && b.vesaW == null) { b.vesaW = 400; b.vesaH = 400; b.vesaOffsetY = 0; }
+    return b;
+  });
+  state.nextId = s.nextId || (state.items.length + 1);
+  state.selectedId = (s.selectedId != null && state.items.some(i => i.id === s.selectedId))
+    ? s.selectedId : (state.items.length ? state.items[state.items.length-1].id : null);
+  syncInputs(); layout(); renderList(); renderReadout();
+}
+
+function encodeShare() { return btoa(unescape(encodeURIComponent(JSON.stringify(snapshotObj())))); }
+function decodeShare(str) { return JSON.parse(decodeURIComponent(escape(atob(str)))); }
+function copyShareLink() {
+  const enc = encodeShare();
+  const url = location.origin + location.pathname + "#s=" + enc;
+  location.hash = "s=" + enc;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => flash("Share link copied to clipboard")).catch(() => prompt("Copy this link:", url));
+  } else { prompt("Copy this link:", url); }
+}
+
+function resetProject() {
+  if (!confirm("Clear all items and start fresh?")) return;
+  commit();
+  state.items = []; state.selectedId = null; state.nextId = 1; frameColorIx = 0;
+  layout(); renderList(); renderReadout(); persist();
+}
+
+// ---------- Undo / redo (#4) ----------
+let undoStack = [], redoStack = [];
+function snap() { return JSON.stringify(snapshotObj()); }
+function commit() {
+  const s = snap();
+  if (undoStack.length && undoStack[undoStack.length-1] === s) return;
+  undoStack.push(s); if (undoStack.length > 100) undoStack.shift();
+  redoStack = []; updateUndoButtons();
+}
+function commitOnFocus(el) { el.addEventListener("focus", commit); }
+function undo() { if (!undoStack.length) return; redoStack.push(snap()); applyState(JSON.parse(undoStack.pop())); persist(); updateUndoButtons(); }
+function redo() { if (!redoStack.length) return; undoStack.push(snap()); applyState(JSON.parse(redoStack.pop())); persist(); updateUndoButtons(); }
+function updateUndoButtons() {
+  document.getElementById("undoBtn").disabled = !undoStack.length;
+  document.getElementById("redoBtn").disabled = !redoStack.length;
+}
+
+// ---------- Toast ----------
+let flashTimer = null;
+const DEFAULT_TOPBAR = "Drag · arrows nudge (Shift = coarse) · Alt disables snap";
+function flash(msg) {
+  const tb = document.getElementById("topbar");
+  tb.textContent = msg; clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { tb.textContent = DEFAULT_TOPBAR; }, 2200);
+}
+
+// ---------- PNG export (#10) ----------
+function buildExportSVG() {
+  const S = 4, pad = 22, fh = 16;
+  const W = state.wall.w*S, H = state.wall.h*S;
+  const svgW = W + pad*2, svgH = H + pad + fh + pad;
+  const L = (x1,y1,x2,y2,st,sw,dash,op) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${st}" stroke-width="${sw}"${dash?` stroke-dasharray="${dash}"`:""}${op!=null?` opacity="${op}"`:""}/>`;
+  const T = (x,y,s,fill,size,anchor) => `<text x="${x}" y="${y}" fill="${fill}" font-family="sans-serif" font-size="${size}"${anchor?` text-anchor="${anchor}"`:""}>${esc(s)}</text>`;
+  let e = "";
+  e += `<rect x="${-pad}" y="${H}" width="${W+2*pad}" height="${fh}" fill="#b9b09c"/>`;
+  e += `<rect x="0" y="0" width="${W}" height="${H}" fill="#e9e4d8" stroke="#c9c2b2" stroke-width="2"/>`;
+  if (state.grid.show && state.grid.spacing > 0) {
+    for (let g=state.grid.spacing; g<state.wall.w; g+=state.grid.spacing) e += L(g*S,0,g*S,H,"#8f96a0",1,null,0.35);
+    for (let g=state.grid.spacing; g<state.wall.h; g+=state.grid.spacing) e += L(0,H-g*S,W,H-g*S,"#8f96a0",1,null,0.35);
+  }
+  if (state.studs.show) for (const s of studPositions()) { e += L(s*S,0,s*S,H,"#8a7a5c",6,null,0.28); e += T(s*S+3,14,"stud","#6f6248",10); }
+  if (state.showEye) { const y=H-state.eyeH*S; e += L(0,y,W,y,"#ffb454",1.5,"6 5"); e += T(6,y-5,"eye "+val(state.eyeH),"#b07e2e",12); }
+  for (const it of state.items) {
+    const x=it.x*S, y=it.y*S, w=it.w*S, h=it.h*S, fill = it.type==='tv' ? "#16181b" : it.color;
+    e += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="rgba(0,0,0,.4)" stroke-width="2"/>`;
+    if (it.type === "frame" && it.mat > 0) { const m=it.mat*S; e += `<rect x="${x+m}" y="${y+m}" width="${w-2*m}" height="${h-2*m}" fill="#ece7da"/>`; }
+    e += T(x+w/2, y+h/2+4, it.name, "#ffffff", 12, "middle");
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}"><rect width="100%" height="100%" fill="#ffffff"/><g transform="translate(${pad},${pad})">${e}</g></svg>`;
+}
+function exportPNG() {
+  const svg = buildExportSVG();
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  const img = new Image();
+  img.onload = () => {
+    const up = 2, c = document.createElement("canvas");
+    c.width = img.width*up; c.height = img.height*up;
+    const ctx = c.getContext("2d"); ctx.scale(up, up); ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    c.toBlob(b => { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "wall-layout.png"; a.click(); flash("Saved wall-layout.png"); });
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); alert("PNG export failed."); };
+  img.src = url;
+}
+
+// ---------- Print measurement sheet ----------
+function exportSheet() {
+  const cell = v => val(v);
+  const markRow = (n, label, fromLeft, fromFloor) =>
+    `<tr><td class="chk">☐</td><td class="n">${n}</td><td>${label}</td><td class="num">${cell(fromLeft)}</td><td class="num">${cell(fromFloor)}</td></tr>`;
+
+  const cards = state.items.map(it => {
+    const centerX = it.x + it.w/2;
+    const centerYFromFloor = state.wall.h - (it.y + it.h/2);
+    const offCenter = centerX - state.wall.w/2;
+    const centered = Math.abs(offCenter) < 0.15;
+    const posLine = `${centered ? "Centered horizontally" : cell(it.x) + " from the left wall"} · ${it.type==='tv' ? "screen" : "center"} height ${cell(centerYFromFloor)} up from floor`;
+
+    let marks = "", tip = "";
+    if (it.type === "tv") {
+      const v = vesaHoles(it);
+      const topH = state.wall.h - v.cyTop + v.hh, botH = state.wall.h - v.cyTop - v.hh;
+      const lx = v.cx - v.hw, rx = v.cx + v.hw;
+      marks =
+        markRow(1, "Top-left bolt hole", lx, topH) +
+        markRow(2, "Top-right bolt hole", rx, topH) +
+        markRow(3, "Bottom-left bolt hole", lx, botH) +
+        markRow(4, "Bottom-right bolt hole", rx, botH);
+      const behind = studPositions().filter(s => s >= it.x && s <= it.x + it.w);
+      tip = `Bolt pattern: VESA ${it.vesaW}×${it.vesaH} mm. The mount's wall plate must screw into studs — studs behind this TV are at ${behind.length ? behind.map(cell).join(", ") + " from the left" : "⚠ none in range; slide the TV or recheck spacing"}.`;
+    } else {
+      const nailFromFloor = state.wall.h - it.y - (it.hookDrop || 0);
+      marks = markRow(1, "Nail / hook", centerX, nailFromFloor);
+      tip = `Hangs from one hook. The hook-drop of ${cell(it.hookDrop || 0)} below the top edge is already built into the nail height.`;
+    }
+
+    return `
+      <section class="card">
+        <h2>${esc(it.name)} <span class="tag">${it.type.toUpperCase()} · ${cell(it.w)} × ${cell(it.h)}</span></h2>
+        <p class="pos">${posLine}</p>
+        <table class="marks">
+          <thead><tr><th></th><th>#</th><th>Mark to make</th><th>From left wall</th><th>Up from floor</th></tr></thead>
+          <tbody>${marks}</tbody>
+        </table>
+        <p class="tip">${tip}</p>
+      </section>`;
+  }).join("");
+
+  const studs = studPositions();
+  const studLine = state.studs.show && studs.length
+    ? `<p class="studs"><b>Studs</b> (${cell(state.studs.spacing)} on-center), measured from the left wall: ${studs.map(cell).join(", ")}</p>` : "";
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Wall mounting plan</title>
+    <style>
+      body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:32px;color:#111;line-height:1.45}
+      h1{font-size:22px;margin:0 0 2px}
+      .sub{color:#666;margin:0 0 14px;font-size:13px}
+      .diagram{border:1px solid #eee;border-radius:10px;padding:10px;text-align:center;margin:0 0 14px;background:#fcfbf9}
+      .diagram svg{max-width:100%;height:auto}
+      .studs{background:#fff6e8;border:1px solid #f0dcb8;border-radius:8px;padding:9px 12px;font-size:13px;margin:0 0 16px}
+      .card{border:1px solid #ddd;border-radius:10px;padding:14px 16px;margin:0 0 14px;page-break-inside:avoid}
+      .card h2{font-size:16px;margin:0 0 4px}
+      .tag{font-weight:400;color:#888;font-size:12px;letter-spacing:.03em}
+      .pos{margin:0 0 10px;font-size:13px;color:#333}
+      table.marks{width:100%;border-collapse:collapse;font-size:13px}
+      .marks th,.marks td{border:1px solid #e2e2e2;padding:7px 9px;text-align:left}
+      .marks th{background:#f5f5f5;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#666}
+      .marks td.num{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+      .marks td.n{color:#888;width:24px}
+      .marks td.chk{width:22px;font-size:16px;color:#aaa}
+      .tip{font-size:12px;color:#666;margin:9px 0 0}
+      .how{margin-top:18px;font-size:12px;color:#555;border-top:1px solid #eee;padding-top:12px}
+      .how b{color:#222}
+      @media print{button{display:none}.card{break-inside:avoid}}
+    </style></head><body>
+    <h1>Wall mounting plan</h1>
+    <p class="sub">Wall ${cell(state.wall.w)} wide × ${cell(state.wall.h)} tall · all measurements in ${state.unit === "in" ? (state.ftin ? "feet &amp; inches" : "inches") : "centimetres"}</p>
+    <div class="diagram">${buildExportSVG()}</div>
+    ${studLine}
+    ${cards || '<p class="sub">No items on the wall yet.</p>'}
+    <div class="how">
+      <p><b>How to use this:</b> for each mark, pull your tape <b>from the left wall</b> and make a light pencil tick at the “from left” distance; then measure <b>up from the floor</b> to the “up from floor” height. Where they cross is your point. Tick the ☐ as you go, and use a level before drilling.</p>
+      <p><b>Frames</b> need one nail/hook. <b>TVs</b> need all four bolt holes drilled, and the mount plate must catch the studs noted on each TV.</p>
+    </div>
+    <button onclick="window.print()" style="margin-top:14px;padding:8px 14px;font-size:14px">Print</button>
+    </body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) { alert("Allow pop-ups to open the printable sheet."); return; }
+  w.document.write(html); w.document.close();
+}
+
+// ---------- Help / guided presentation ----------
+const HELP_SLIDES = [
+  { hero: "📐", eyebrow: "Welcome", title: "Plan your wall before you drill",
+    html: `<p>Lay out your <b>TV and picture frames to scale</b>, drag them around, and read the exact measurements you need to hang everything straight and centered.</p>
+           <p>This quick tour takes about a minute. You can reopen it anytime with <b>📖 How to use this app</b> in the Project section.</p>` },
+  { hero: "🧱", eyebrow: "Step 1", title: "Set up your wall",
+    html: `<ul>
+            <li>Enter your wall's <b>Width</b> and <b>Height</b> in the <b>Wall</b> panel.</li>
+            <li>Switch between <b>inches</b> and <b>cm</b> — everything converts automatically.</li>
+            <li>Prefer <kbd>5′ 0″</kbd> over <kbd>60″</kbd>? Tick <b>Show feet &amp; inches</b>.</li>
+          </ul>` },
+  { hero: "📺", eyebrow: "Step 2", title: "Add a TV or frames",
+    html: `<ul>
+            <li><b>+ Add TV</b> — type the diagonal (e.g. 55) and it builds the real 16:9 size.</li>
+            <li><b>+ Add Frame</b> — then pick a <b>Size preset</b> (8×10, 24×36, A4…) under <i>Selected item</i>, or type your own.</li>
+            <li>Select any item to edit its name, size, and position; <b>Duplicate</b> (<kbd>Ctrl/Cmd+D</kbd>) or delete it.</li>
+          </ul>` },
+  { hero: "🎯", eyebrow: "Step 3", title: "Drag it & read the numbers",
+    html: `<p>Drag an item on the wall — every distance updates live: <b>from each wall, to the floor, center height,</b> and whether it's <b>centered</b>.</p>
+           <ul>
+            <li>Blue <b>dimension lines</b> draw right on the wall (always on top, even over other frames).</li>
+            <li>It <b>snaps</b> to the wall center, eye level, grid, studs, and other frames — guide lines flash on snap.</li>
+            <li>Hold <kbd>Alt</kbd> while dragging to move freely (no snapping).</li>
+           </ul>` },
+  { hero: "🔩", eyebrow: "Mounting", title: "TVs and frames mount differently",
+    html: `<p>The starred ★ numbers are the marks to make on the wall:</p>
+           <ul>
+            <li><b>Frame</b> → one <b>nail/hook</b> point (height from floor + distance from left), accounting for the hook drop.</li>
+            <li><b>TV</b> → the <b>4 VESA bolt holes</b> to drill, plus which <b>studs</b> sit behind it so the mount plate has something to bite into.</li>
+           </ul>
+           <p>Set the VESA pattern and stud spacing in the side panels.</p>` },
+  { hero: "🎚️", eyebrow: "Precision", title: "Nudge, type, and snap",
+    html: `<ul>
+            <li><b>Arrow keys</b> nudge the selected item (<kbd>Shift</kbd> = coarse step).</li>
+            <li>Type exact <b>From left</b> / <b>Bottom from floor</b> values in <i>Selected item</i>.</li>
+            <li><b>Lock / unlock</b> an item (🔓 in its card) so it can't be moved by accident.</li>
+            <li><kbd>Ctrl/Cmd+Z</kbd> undo · <kbd>Shift</kbd> to redo.</li>
+           </ul>` },
+  { hero: "🖼️", eyebrow: "Gallery wall", title: "Arrange & lock the gaps",
+    html: `<ul>
+            <li>Pick a layout — <b>Grid, Row, Column, Staircase</b> — set the <b>Gap</b>, and hit <b>Arrange frames</b>.</li>
+            <li><b>Lock gaps</b>: frames then move <b>up/down only</b>, so the side-to-side spacing never changes while you fine-tune heights.</li>
+            <li>The <b>◀▲▼▶</b> buttons shift <b>all frames together</b> to reposition the whole set.</li>
+           </ul>` },
+  { hero: "💾", eyebrow: "Finish", title: "Save, share & take it to the wall",
+    html: `<ul>
+            <li>Your layout <b>auto-saves</b> in this browser.</li>
+            <li><b>Share</b> copies a link that encodes the whole layout — no account needed.</li>
+            <li><b>Save PNG</b> exports a picture of the plan; <b>Print</b> makes a step-by-step mounting sheet with a check box for every mark.</li>
+           </ul>
+           <p>That's it — happy mounting! 🛠️</p>` },
+];
+let helpIx = 0;
+function renderHelp() {
+  const s = HELP_SLIDES[helpIx];
+  document.getElementById("helpBody").innerHTML =
+    `<div class="help-hero">${s.hero}</div><div class="help-eyebrow">${s.eyebrow} · ${helpIx+1} of ${HELP_SLIDES.length}</div><h3>${s.title}</h3>${s.html}`;
+  document.getElementById("helpDots").innerHTML = HELP_SLIDES.map((_, i) => `<span class="${i===helpIx?'on':''}" data-i="${i}"></span>`).join("");
+  document.getElementById("helpBack").style.visibility = helpIx === 0 ? "hidden" : "visible";
+  document.getElementById("helpNext").textContent = helpIx === HELP_SLIDES.length-1 ? "Start" : "Next";
+  document.getElementById("helpBody").scrollTop = 0;
+}
+function openHelp() { helpIx = 0; renderHelp(); document.getElementById("helpOverlay").hidden = false; }
+function closeHelp() { document.getElementById("helpOverlay").hidden = true; try { localStorage.setItem("wallVisualizer.helpSeen", "1"); } catch (e) {} }
+
+// ---------- Wire up ----------
+function bindNum(id, fn) {
+  const el = document.getElementById(id);
+  commitOnFocus(el);
+  el.addEventListener("input", e => { const v = parseFloat(e.target.value); fn(v, e); });
+}
+bindNum("wallW", v => { if (v>0){ state.wall.w=v; state.items.forEach(clamp); layout(); renderNumbers(); persist(); }});
+bindNum("wallH", v => { if (v>0){ state.wall.h=v; state.items.forEach(clamp); layout(); renderNumbers(); persist(); }});
+bindNum("eyeH", v => { if (v>0){ state.eyeH=v; renderOverlay(); renderNumbers(); persist(); }});
+bindNum("studSpacing", v => { if (v>0){ state.studs.spacing=v; renderOverlay(); renderNumbers(); persist(); }});
+bindNum("studOffset", v => { if (v>=0){ state.studs.offset=v; renderOverlay(); renderNumbers(); persist(); }});
+bindNum("gridSpacing", v => { if (v>0){ state.grid.spacing=v; renderOverlay(); persist(); }});
+
+document.getElementById("ftin").addEventListener("change", e => { commit(); state.ftin = e.target.checked; renderOverlay(); renderList(); renderReadout(); persist(); });
+document.getElementById("unitIn").addEventListener("click", () => setUnit("in"));
+document.getElementById("unitCm").addEventListener("click", () => setUnit("cm"));
+document.getElementById("addTv").addEventListener("click", addTv);
+document.getElementById("addFrame").addEventListener("click", addFrame);
+document.getElementById("arrangeGallery").addEventListener("click", arrangeGallery);
+document.getElementById("exportSheet").addEventListener("click", exportSheet);
+document.getElementById("exportPng").addEventListener("click", exportPNG);
+document.getElementById("shareBtn").addEventListener("click", copyShareLink);
+document.getElementById("resetProject").addEventListener("click", resetProject);
+document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("redoBtn").addEventListener("click", redo);
+
+// help / guide
+document.getElementById("helpBtn").addEventListener("click", openHelp);
+document.getElementById("helpClose").addEventListener("click", closeHelp);
+document.getElementById("helpBack").addEventListener("click", () => { if (helpIx > 0) { helpIx--; renderHelp(); } });
+document.getElementById("helpNext").addEventListener("click", () => { if (helpIx < HELP_SLIDES.length-1) { helpIx++; renderHelp(); } else closeHelp(); });
+document.getElementById("helpDots").addEventListener("click", e => { const i = e.target.dataset.i; if (i != null) { helpIx = +i; renderHelp(); } });
+document.getElementById("helpOverlay").addEventListener("click", e => { if (e.target.id === "helpOverlay") closeHelp(); });
+document.addEventListener("keydown", e => {
+  if (document.getElementById("helpOverlay").hidden) return;
+  if (e.key === "Escape") closeHelp();
+  else if (e.key === "ArrowRight") { if (helpIx < HELP_SLIDES.length-1) { helpIx++; renderHelp(); } }
+  else if (e.key === "ArrowLeft") { if (helpIx > 0) { helpIx--; renderHelp(); } }
+});
+
+["snapCenter","snapAlign","showEye","showStuds","showGrid"].forEach(id => {
+  const el = document.getElementById(id); commitOnFocus(el);
+  el.addEventListener("change", e => {
+    const v = e.target.checked;
+    if (id==="snapCenter") state.snapCenter = v;
+    else if (id==="snapAlign") state.snapAlign = v;
+    else if (id==="showEye") state.showEye = v;
+    else if (id==="showStuds") state.studs.show = v;
+    else if (id==="showGrid") state.grid.show = v;
+    renderOverlay(); persist();
+  });
+});
+document.getElementById("lockGaps").addEventListener("change", e => { state.groupFrames = e.target.checked; persist(); });
+const GROUP_STEP = () => state.unit === "cm" ? 2 : 1;
+document.getElementById("grpL").addEventListener("click", () => nudgeGroup(-GROUP_STEP(), 0));
+document.getElementById("grpR").addEventListener("click", () => nudgeGroup(GROUP_STEP(), 0));
+document.getElementById("grpU").addEventListener("click", () => nudgeGroup(0, -GROUP_STEP()));
+document.getElementById("grpD").addEventListener("click", () => nudgeGroup(0, GROUP_STEP()));
+
+// gallery gap slider <-> number sync
+const galGap = document.getElementById("galGap"), galGapRange = document.getElementById("galGapRange");
+galGapRange.addEventListener("input", e => { galGap.value = e.target.value; });
+galGap.addEventListener("input", e => { galGapRange.value = e.target.value; });
+
+window.addEventListener("resize", layout);
+wallEl.addEventListener("pointerdown", () => select(null));
+
+// keyboard: nudge, undo/redo, duplicate, delete
+document.addEventListener("keydown", (e) => {
+  if (!document.getElementById("helpOverlay").hidden) return;   // guide open — ignore app shortcuts
+  const tag = (document.activeElement && document.activeElement.tagName) || "";
+  const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+  const meta = e.metaKey || e.ctrlKey;
+  if (meta && (e.key === "z" || e.key === "Z")) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (meta && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
+  if (meta && (e.key === "d" || e.key === "D")) { e.preventDefault(); duplicate(); return; }
+  if (typing) return;
+  const it = selected(); if (!it) return;
+  const arrows = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] };
+  if (arrows[e.key]) {
+    e.preventDefault(); if (it.locked) return;
+    if (!e.repeat) commit();
+    const step = state.unit === "cm" ? (e.shiftKey ? 5 : 0.5) : (e.shiftKey ? 1 : 0.1);
+    let [dx,dy] = arrows[e.key];
+    if (it.type === "frame" && state.groupFrames) dx = 0;  // lock gaps: vertical only
+    if (dx === 0 && dy === 0) return;                      // (e.g. left/right while horizontally locked)
+    it.x = round(Math.max(0, Math.min(state.wall.w - it.w, it.x + dx*step)));
+    it.y = round(Math.max(0, Math.min(state.wall.h - it.h, it.y + dy*step)));
+    renderItems(); renderOverlay(); renderNumbers(); persist();
+  } else if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault(); commit(); deleteItem(it.id);
+  }
+});
+
+// ---------- Init ----------
+(function init() {
+  let bootObj = null;
+  if (location.hash.indexOf("s=") > -1) {
+    try { bootObj = decodeShare(location.hash.split("s=")[1]); } catch (e) {}
+  }
+  if (!bootObj) bootObj = fromLocal();
+  if (bootObj) { applyState(bootObj); persist(); }
+  else { addTv(); }
+  undoStack = []; redoStack = []; updateUndoButtons();   // don't let initial setup count as undo history
+  // first-visit walkthrough
+  let seen = false; try { seen = localStorage.getItem("wallVisualizer.helpSeen") === "1"; } catch (e) {}
+  if (!seen) openHelp();
+})();
+</script>
+</body>
+</html>
